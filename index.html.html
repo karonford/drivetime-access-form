@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Access Request | DriveTime</title>
+
+  <!-- =====================================================================
+       OKTA OIDC SDK — loaded from CDN
+       Docs: https://github.com/okta/okta-auth-js
+  ====================================================================== -->
+  <script src="https://global.oktacdn.com/okta-auth-js/7.5.1/okta-auth-js.min.js"
+          crossorigin="anonymous"></script>
+
+  <style>
+    /* ============================================================
+       DESIGN TOKENS — edit here to retheme the whole app
+    ============================================================ */
+    :root {
+      --bg:           #0d0f14;
+      --surface:      #161a23;
+      --surface-2:    #1e2330;
+      --border:       #2a3147;
+      --accent:       #e8423f;        /* DriveTime red */
+      --accent-dark:  #b83230;
+      --accent-glow:  rgba(232,66,63,0.18);
+      --text:         #edf0f7;
+      --text-muted:   #8892a4;
+      --text-dim:     #555f75;
+      --input-bg:     #12151d;
+      --radius:       10px;
+      --font-ui:      'DM Sans', 'Segoe UI', system-ui, sans-serif;
+      --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+      --shadow:       0 4px 24px rgba(0,0,0,0.45);
+    }
+
+    /* ============================================================
+       RESET & BASE
+    ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap');
+
+    html, body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    /* Subtle grid background */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: 0.25;
+    }
+
+    /* ============================================================
+       LAYOUT
+    ============================================================ */
+    #app {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 80px;
+    }
+
+    /* ============================================================
+       HEADER / BRAND
+    ============================================================ */
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 40px;
+      user-select: none;
+    }
+
+    .brand-logo {
+      width: 44px; height: 44px;
+      background: var(--accent);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; font-weight: 700; color: #fff;
+      letter-spacing: -1px;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    .brand-name {
+      font-size: 20px; font-weight: 700; letter-spacing: -0.5px;
+      color: var(--text);
+    }
+
+    .brand-name span { color: var(--accent); }
+
+    /* ============================================================
+       CARD
+    ============================================================ */
+    .card {
+      width: 100%; max-width: 600px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: var(--shadow);
+      animation: fadeUp 0.45s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0);    }
+    }
+
+    .card-header { margin-bottom: 32px; }
+    .card-header h1 {
+      font-size: 24px; font-weight: 700; letter-spacing: -0.5px;
+      color: var(--text); margin-bottom: 6px;
+    }
+    .card-header p { color: var(--text-muted); font-size: 14px; }
+
+    .card-divider {
+      border: none; border-top: 1px solid var(--border);
+      margin: 28px 0;
+    }
+
+    /* ============================================================
+       FORM ELEMENTS
+    ============================================================ */
+    .field { margin-bottom: 24px; }
+
+    .field label {
+      display: block;
+      font-size: 13px; font-weight: 600; letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .field label .required {
+      color: var(--accent); margin-left: 3px;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 15px;
+      padding: 12px 14px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    .field select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238892a4' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 38px;
+      cursor: pointer;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .field input::placeholder,
+    .field textarea::placeholder { color: var(--text-dim); }
+
+    .field textarea { resize: vertical; min-height: 90px; }
+
+    /* Select option styling */
+    .field select option {
+      background: var(--surface-2);
+      color: var(--text);
+    }
+
+    /* Loading spinner inside select */
+    .field-hint {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 6px;
+    }
+
+    /* Radio group for roles */
+    .role-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .role-option {
+      position: relative;
+    }
+
+    .role-option input[type="radio"] {
+      position: absolute; opacity: 0; width: 0; height: 0;
+    }
+
+    .role-option label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      text-transform: none;
+      letter-spacing: 0;
+      font-weight: 400;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .role-option label .dot {
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      flex-shrink: 0;
+      transition: border-color 0.2s, background 0.2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .role-option input:checked + label {
+      border-color: var(--accent);
+      background: rgba(232,66,63,0.06);
+      color: var(--text);
+    }
+
+    .role-option input:checked + label .dot {
+      border-color: var(--accent);
+      background: var(--accent);
+    }
+
+    .role-option input:checked + label .dot::after {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #fff;
+    }
+
+    /* ============================================================
+       USER CHIP (shown after login)
+    ============================================================ */
+    .user-chip {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 28px;
+    }
+
+    .user-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 14px; color: #fff;
+      flex-shrink: 0;
+    }
+
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-email { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .user-logout {
+      font-size: 12px; color: var(--text-dim);
+      cursor: pointer; padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      background: none;
+      transition: all 0.2s;
+    }
+    .user-logout:hover { border-color: var(--border); color: var(--text-muted); }
+
+    /* ============================================================
+       SUBMIT BUTTON
+    ============================================================ */
+    .btn-submit {
+      width: 100%;
+      padding: 15px 24px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--font-ui);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-submit:hover:not(:disabled) {
+      background: #d43835;
+      box-shadow: 0 6px 24px rgba(232,66,63,0.35);
+    }
+
+    .btn-submit:active:not(:disabled) { transform: scale(0.99); }
+
+    .btn-submit:disabled {
+      opacity: 0.5; cursor: not-allowed;
+    }
+
+    .btn-submit .spinner {
+      display: none;
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto;
+    }
+
+    .btn-submit.loading .btn-text { display: none; }
+    .btn-submit.loading .spinner { display: block; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ============================================================
+       LOGIN SCREEN
+    ============================================================ */
+    .login-card {
+      width: 100%; max-width: 420px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px 40px;
+      text-align: center;
+      box-shadow: var(--shadow);
+      animation: fadeUp 0.45s ease both;
+    }
+
+    .login-icon {
+      width: 64px; height: 64px;
+      background: var(--accent-glow);
+      border: 1px solid rgba(232,66,63,0.3);
+      border-radius: 16px;
+      margin: 0 auto 24px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+    }
+
+    .login-card h2 {
+      font-size: 22px; font-weight: 700; letter-spacing: -0.4px;
+      margin-bottom: 10px;
+    }
+
+    .login-card p {
+      color: var(--text-muted); font-size: 14px;
+      margin-bottom: 32px; line-height: 1.6;
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 14px 24px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--font-ui);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, box-shadow 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+
+    .btn-login:hover {
+      background: #d43835;
+      box-shadow: 0 6px 24px rgba(232,66,63,0.35);
+    }
+
+    /* ============================================================
+       STATUS / TOAST
+    ============================================================ */
+    .toast {
+      position: fixed;
+      bottom: 32px; right: 32px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 20px;
+      font-size: 14px;
+      box-shadow: var(--shadow);
+      display: flex; align-items: center; gap: 10px;
+      z-index: 999;
+      max-width: 360px;
+      animation: slideIn 0.3s ease both;
+      transform: translateX(0);
+    }
+
+    .toast.success { border-left: 3px solid #3cba74; }
+    .toast.error   { border-left: 3px solid var(--accent); }
+
+    .toast.hide { animation: slideOut 0.3s ease both; }
+
+    @keyframes slideIn  { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
+    @keyframes slideOut { from { opacity:1; transform:translateX(0); } to { opacity:0; transform:translateX(20px); } }
+
+    /* ============================================================
+       SUCCESS STATE
+    ============================================================ */
+    .success-screen {
+      text-align: center; padding: 20px 0;
+    }
+
+    .success-icon {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      background: rgba(60,186,116,0.12);
+      border: 1px solid rgba(60,186,116,0.3);
+      margin: 0 auto 24px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px;
+      animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+
+    @keyframes popIn { from { opacity:0; transform:scale(0.6); } to { opacity:1; transform:scale(1); } }
+
+    .success-screen h2 { font-size: 22px; font-weight: 700; margin-bottom: 10px; }
+    .success-screen p { color: var(--text-muted); font-size: 14px; }
+
+    .btn-reset {
+      margin-top: 28px;
+      padding: 11px 28px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      font-family: var(--font-ui);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-reset:hover { background: var(--surface-2); color: var(--text); }
+
+    /* ============================================================
+       FOOTER
+    ============================================================ */
+    .footer {
+      margin-top: 32px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    /* ============================================================
+       UTILITY
+    ============================================================ */
+    .hidden { display: none !important; }
+
+    @media (max-width: 480px) {
+      .card, .login-card { padding: 28px 20px; }
+      .role-grid { grid-template-columns: 1fr; }
+      .toast { bottom: 16px; right: 16px; left: 16px; max-width: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ================================================================
+     TOAST NOTIFICATION (injected dynamically)
+================================================================ -->
+
+<div id="app">
+
+  <!-- BRAND -->
+  <div class="brand">
+    <div class="brand-logo">DT</div>
+    <div class="brand-name">Drive<span>Time</span></div>
+  </div>
+
+  <!-- ============================================================
+       LOGIN SCREEN
+  ============================================================ -->
+  <div id="screen-login" class="login-card hidden">
+    <div class="login-icon">🔐</div>
+    <h2>Sign in to continue</h2>
+    <p>You must authenticate with your DriveTime Okta account before submitting an access request.</p>
+    <button class="btn-login" onclick="signIn()">
+      <!-- Okta logo inline SVG -->
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 18c-3.314 0-6-2.686-6-6s2.686-6 6-6 6 2.686 6 6-2.686 6-6 6z"/>
+      </svg>
+      Continue with Okta SSO
+    </button>
+  </div>
+
+  <!-- ============================================================
+       FORM SCREEN
+  ============================================================ -->
+  <div id="screen-form" class="card hidden">
+
+    <!-- HEADER -->
+    <div class="card-header">
+      <h1>Application Access Request</h1>
+      <p>Submit a request below. Your request will be routed through the IT access workflow for approval.</p>
+    </div>
+
+    <!-- USER CHIP -->
+    <div class="user-chip" id="user-chip">
+      <div class="user-avatar" id="user-avatar">?</div>
+      <div class="user-info">
+        <div class="user-name" id="user-name">Loading…</div>
+        <div class="user-email" id="user-email">—</div>
+      </div>
+      <button class="user-logout" onclick="signOut()">Sign out</button>
+    </div>
+
+    <hr class="card-divider" />
+
+    <!-- FORM -->
+    <form id="request-form" onsubmit="submitForm(event)">
+
+      <!-- Q1: Application -->
+      <div class="field">
+        <label for="app-select">
+          Which application do you need access to?
+          <span class="required">*</span>
+        </label>
+        <select id="app-select" name="application" required>
+          <option value="" disabled selected>Select an application…</option>
+          <!-- Options are populated by loadApps() below -->
+        </select>
+        <div class="field-hint" id="app-hint">Loading available applications…</div>
+      </div>
+
+      <!-- Q2: Role -->
+      <div class="field">
+        <label>What role do you need? <span class="required">*</span></label>
+
+        <!-- =====================================================
+             ROLES LIST — edit this array to add/remove roles
+        ====================================================== -->
+        <div class="role-grid" id="role-grid"></div>
+      </div>
+
+      <!-- Q3: Justification -->
+      <div class="field">
+        <label for="justification">Business justification <span class="required">*</span></label>
+        <textarea
+          id="justification"
+          name="justification"
+          placeholder="Briefly explain why you need this access and how it supports your role…"
+          required
+          minlength="10"
+        ></textarea>
+      </div>
+
+      <hr class="card-divider" />
+
+      <!-- SUBMIT -->
+      <button type="submit" class="btn-submit" id="btn-submit">
+        <span class="btn-text">Submit Access Request</span>
+        <div class="spinner"></div>
+      </button>
+
+    </form>
+  </div>
+
+  <!-- ============================================================
+       SUCCESS SCREEN
+  ============================================================ -->
+  <div id="screen-success" class="card hidden">
+    <div class="success-screen">
+      <div class="success-icon">✓</div>
+      <h2>Request submitted!</h2>
+      <p>Your access request has been received and routed to the IT workflow for approval. You will receive an email update once it has been reviewed.</p>
+      <button class="btn-reset" onclick="resetForm()">Submit another request</button>
+    </div>
+  </div>
+
+  <div class="footer">DriveTime IT · Access Management Portal · <span id="footer-year"></span></div>
+
+</div><!-- /#app -->
+
+
+<script>
+/* =================================================================
+   ╔═══════════════════════════════════════════════════════════════╗
+   ║            CONFIGURATION — EDIT THIS SECTION                 ║
+   ╚═══════════════════════════════════════════════════════════════╝
+
+   All values you may need to change are in this CONFIG block.
+================================================================= */
+const CONFIG = {
+  // ── Okta OIDC Settings ──────────────────────────────────────────
+  // Register an OIDC SPA app in Okta and paste its Client ID below.
+  // Set the redirect URI to the URL where this file is hosted.
+  OKTA_DOMAIN:        'https://drivetime.okta.com',
+  OKTA_CLIENT_ID:     'YOUR_OKTA_CLIENT_ID_HERE',    // ← replace me
+  REDIRECT_URI:       window.location.origin + window.location.pathname,
+
+  // ── Okta Workflow Invoke URL ────────────────────────────────────
+  WORKFLOW_INVOKE_URL: 'https://drivetime.workflows.okta.com/api/flo/167774c0eb34e735679f2ddb9a26798b/invoke?clientToken=29d74f266d77aa15b8fa46df406c989f073a264b45afefcdd748bef1c26301f0',
+
+  // ── Application List ────────────────────────────────────────────
+  // Option A (current): Static list — easy to maintain, edit below.
+  // Option B (future):  Replace loadApps() with an API call to your
+  //                     backend proxy that hits the Okta Apps API.
+  //
+  //   GET https://drivetime.okta.com/api/v1/apps?limit=200
+  //   Requires an API token — must be called server-side.
+  //
+  APPLICATIONS: [
+    { id: 'salesforce',       label: 'Salesforce'          },
+    { id: 'workday',          label: 'Workday'             },
+    { id: 'servicenow',       label: 'ServiceNow'          },
+    { id: 'aws_console',      label: 'AWS Console'         },
+    { id: 'github',           label: 'GitHub Enterprise'   },
+    { id: 'jira',             label: 'Jira'                },
+    { id: 'confluence',       label: 'Confluence'          },
+    { id: 'slack',            label: 'Slack'               },
+    { id: 'zoom',             label: 'Zoom'                },
+    { id: 'databricks',       label: 'Databricks'          },
+    { id: 'tableau',          label: 'Tableau'             },
+    { id: 'docusign',         label: 'DocuSign'            },
+    { id: 'microsoft365',     label: 'Microsoft 365'       },
+    { id: 'zendesk',          label: 'Zendesk'             },
+    { id: 'vault',            label: 'HashiCorp Vault'     },
+    // Add more apps here: { id: 'unique_key', label: 'Display Name' }
+  ],
+
+  // ── Role Options ────────────────────────────────────────────────
+  ROLES: [
+    { value: 'read_only',   label: 'Read Only'    },
+    { value: 'contributor', label: 'Contributor'  },
+    { value: 'editor',      label: 'Editor'       },
+    { value: 'admin',       label: 'Admin'        },
+    { value: 'owner',       label: 'Owner'        },
+    { value: 'custom',      label: 'Custom / Other' },
+  ],
+};
+
+/* =================================================================
+   OKTA AUTH CLIENT
+================================================================= */
+let authClient;
+
+function initOkta() {
+  authClient = new OktaAuth({
+    issuer:        CONFIG.OKTA_DOMAIN + '/oauth2/default',
+    clientId:      CONFIG.OKTA_CLIENT_ID,
+    redirectUri:   CONFIG.REDIRECT_URI,
+    scopes:        ['openid', 'profile', 'email'],
+    pkce:          true,
+    responseType:  ['code'],
+  });
+}
+
+/* =================================================================
+   SIGN IN / OUT
+================================================================= */
+async function signIn() {
+  await authClient.signInWithRedirect({ originalUri: window.location.pathname });
+}
+
+async function signOut() {
+  await authClient.signOut();
+}
+
+/* =================================================================
+   HANDLE REDIRECT CALLBACK + LOAD USER
+================================================================= */
+async function handleAuth() {
+  initOkta();
+
+  // Handle the redirect callback if we just returned from Okta
+  if (authClient.isLoginRedirect()) {
+    try {
+      await authClient.handleLoginRedirect();
+    } catch (e) {
+      console.error('Auth callback error:', e);
+      showToast('Authentication error: ' + e.message, 'error');
+    }
+  }
+
+  // Check if there's an active session
+  const session = await authClient.authStateManager.getAuthState();
+
+  if (session && session.isAuthenticated) {
+    const userInfo = await authClient.getUser();
+    showFormScreen(userInfo);
+  } else {
+    // Try to get existing session token
+    try {
+      await authClient.token.getWithoutPrompt({
+        responseType: ['token', 'id_token'],
+      }).then(({ tokens }) => {
+        authClient.tokenManager.setTokens(tokens);
+        return authClient.getUser();
+      }).then(userInfo => {
+        showFormScreen(userInfo);
+      });
+    } catch {
+      showLoginScreen();
+    }
+  }
+}
+
+/* =================================================================
+   SCREENS
+================================================================= */
+function showLoginScreen() {
+  document.getElementById('screen-login').classList.remove('hidden');
+  document.getElementById('screen-form').classList.add('hidden');
+  document.getElementById('screen-success').classList.add('hidden');
+}
+
+function showFormScreen(userInfo) {
+  document.getElementById('screen-login').classList.add('hidden');
+  document.getElementById('screen-form').classList.remove('hidden');
+  document.getElementById('screen-success').classList.add('hidden');
+
+  // Populate user chip
+  const name  = userInfo.name  || userInfo.preferred_username || 'Unknown';
+  const email = userInfo.email || '';
+  const initials = name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0,2);
+
+  document.getElementById('user-name').textContent   = name;
+  document.getElementById('user-email').textContent  = email;
+  document.getElementById('user-avatar').textContent = initials;
+
+  // Store user data for form submission
+  window._currentUser = { name, email, sub: userInfo.sub };
+
+  loadApps();
+  loadRoles();
+}
+
+function showSuccessScreen() {
+  document.getElementById('screen-form').classList.add('hidden');
+  document.getElementById('screen-success').classList.remove('hidden');
+}
+
+function resetForm() {
+  document.getElementById('request-form').reset();
+  document.getElementById('screen-success').classList.add('hidden');
+  document.getElementById('screen-form').classList.remove('hidden');
+}
+
+/* =================================================================
+   LOAD APPLICATIONS INTO SELECT
+================================================================= */
+function loadApps() {
+  const select = document.getElementById('app-select');
+  const hint   = document.getElementById('app-hint');
+
+  // Clear existing options except placeholder
+  while (select.options.length > 1) select.remove(1);
+
+  CONFIG.APPLICATIONS.forEach(app => {
+    const opt = document.createElement('option');
+    opt.value       = app.id;
+    opt.textContent = app.label;
+    select.appendChild(opt);
+  });
+
+  hint.textContent = CONFIG.APPLICATIONS.length + ' applications available.';
+
+  /* ── FUTURE: swap the block above for an API call ──────────────
+     When you have a backend proxy set up, replace this function
+     body with something like:
+
+     const res = await fetch('/api/okta-apps');
+     const apps = await res.json();
+     apps.forEach(app => {
+       const opt = document.createElement('option');
+       opt.value = app.id;
+       opt.textContent = app.label || app.name;
+       select.appendChild(opt);
+     });
+     hint.textContent = apps.length + ' applications loaded.';
+  ──────────────────────────────────────────────────────────────── */
+}
+
+/* =================================================================
+   LOAD ROLE OPTIONS
+================================================================= */
+function loadRoles() {
+  const grid = document.getElementById('role-grid');
+  grid.innerHTML = '';
+
+  CONFIG.ROLES.forEach((role, i) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'role-option';
+
+    wrapper.innerHTML = `
+      <input type="radio" name="role" id="role_${i}" value="${role.value}" ${i === 0 ? 'required' : ''}>
+      <label for="role_${i}">
+        <span class="dot"></span>
+        ${role.label}
+      </label>`;
+
+    grid.appendChild(wrapper);
+  });
+}
+
+/* =================================================================
+   FORM SUBMISSION → OKTA WORKFLOW
+================================================================= */
+async function submitForm(e) {
+  e.preventDefault();
+
+  const form   = document.getElementById('request-form');
+  const btn    = document.getElementById('btn-submit');
+  const appSel = document.getElementById('app-select');
+
+  // Validate role selection
+  const selectedRole = form.querySelector('input[name="role"]:checked');
+  if (!selectedRole) {
+    showToast('Please select a role.', 'error');
+    return;
+  }
+
+  // Build payload
+  const payload = {
+    requester_name:        window._currentUser?.name  || 'Unknown',
+    requester_email:       window._currentUser?.email || 'Unknown',
+    requester_id:          window._currentUser?.sub   || '',
+    application_id:        appSel.value,
+    application_name:      appSel.options[appSel.selectedIndex].text,
+    role_requested:        selectedRole.value,
+    role_label:            selectedRole.closest('.role-option').querySelector('label').textContent.trim(),
+    justification:         document.getElementById('justification').value.trim(),
+    submitted_at:          new Date().toISOString(),
+    source:                'Access Request Form',
+  };
+
+  // Loading state
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  try {
+    const response = await fetch(CONFIG.WORKFLOW_INVOKE_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error('Workflow returned status ' + response.status);
+    }
+
+    showSuccessScreen();
+
+  } catch (err) {
+    console.error('Workflow error:', err);
+    showToast('Submission failed: ' + err.message + '. Please try again or contact IT.', 'error');
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+/* =================================================================
+   TOAST NOTIFICATIONS
+================================================================= */
+let _toastTimeout;
+
+function showToast(message, type = 'success') {
+  // Remove existing
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+  clearTimeout(_toastTimeout);
+
+  const icons = { success: '✓', error: '✕' };
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `<span>${icons[type] || '•'}</span><span>${message}</span>`;
+  document.body.appendChild(toast);
+
+  _toastTimeout = setTimeout(() => {
+    toast.classList.add('hide');
+    setTimeout(() => toast.remove(), 300);
+  }, 5000);
+}
+
+/* =================================================================
+   INIT
+================================================================= */
+document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+// Kick off auth flow
+handleAuth().catch(err => {
+  console.error('Init error:', err);
+  showLoginScreen();
+});
+</script>
+
+</body>
+</html>
