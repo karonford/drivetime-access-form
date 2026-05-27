@@ -664,7 +664,7 @@ let authClient;
 
 function initOkta() {
   authClient = new OktaAuth({
-    issuer:        CONFIG.OKTA_DOMAIN + '/oauth2/default',
+    issuer:        CONFIG.OKTA_DOMAIN,
     clientId:      CONFIG.OKTA_CLIENT_ID,
     redirectUri:   CONFIG.REDIRECT_URI,
     scopes:        ['openid', 'profile', 'email'],
