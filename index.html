@@ -664,7 +664,7 @@ let authClient;
 
 function initOkta() {
   authClient = new OktaAuth({
-    issuer:        CONFIG.OKTA_DOMAIN,
+    issuer:        CONFIG.OKTA_DOMAIN,          // org-level OIDC (no API Access Management needed)
     clientId:      CONFIG.OKTA_CLIENT_ID,
     redirectUri:   CONFIG.REDIRECT_URI,
     scopes:        ['openid', 'profile', 'email'],
@@ -707,19 +707,9 @@ async function handleAuth() {
     const userInfo = await authClient.getUser();
     showFormScreen(userInfo);
   } else {
-    // Try to get existing session token
-    try {
-      await authClient.token.getWithoutPrompt({
-        responseType: ['token', 'id_token'],
-      }).then(({ tokens }) => {
-        authClient.tokenManager.setTokens(tokens);
-        return authClient.getUser();
-      }).then(userInfo => {
-        showFormScreen(userInfo);
-      });
-    } catch {
-      showLoginScreen();
-    }
+  } else {
+    showLoginScreen();
+  }
   }
 }
 
