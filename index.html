@@ -681,7 +681,9 @@ async function signIn() {
 }
 
 async function signOut() {
-  await authClient.signOut();
+  await authClient.signOut({
+    postLogoutRedirectUri: "https://drivetime.okta.com"
+  });
 }
 
 /* =================================================================
@@ -695,26 +697,27 @@ async function handleAuth() {
     try {
       await authClient.handleLoginRedirect();
     } catch (e) {
-      console.error('Auth callback error:', e);
-      showToast('Authentication error: ' + e.message, 'error');
+      console.error("Auth callback error:", e);
+      showToast("Authentication error: " + e.message, "error");
       showLoginScreen();
       return;
     }
   }
 
-  // Check token storage first (already logged in)
-  const tokens = await authClient.tokenManager.getTokens();
-  if (tokens && tokens.idToken) {
-    try {
+  // Check token storage — already logged in?
+  try {
+    const tokens = await authClient.tokenManager.getTokens();
+    if (tokens && tokens.idToken) {
       const userInfo = await authClient.getUser();
       showFormScreen(userInfo);
-    } catch {
+    } else {
       showLoginScreen();
     }
-  } else {
+  } catch {
     showLoginScreen();
   }
 }
+
 /* =================================================================
    SCREENS
 ================================================================= */
