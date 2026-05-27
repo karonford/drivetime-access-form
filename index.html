@@ -697,22 +697,24 @@ async function handleAuth() {
     } catch (e) {
       console.error('Auth callback error:', e);
       showToast('Authentication error: ' + e.message, 'error');
+      showLoginScreen();
+      return;
     }
   }
 
-  // Check if there's an active session
-  const session = await authClient.authStateManager.getAuthState();
-
-  if (session && session.isAuthenticated) {
-    const userInfo = await authClient.getUser();
-    showFormScreen(userInfo);
-  } else {
+  // Check token storage first (already logged in)
+  const tokens = await authClient.tokenManager.getTokens();
+  if (tokens && tokens.idToken) {
+    try {
+      const userInfo = await authClient.getUser();
+      showFormScreen(userInfo);
+    } catch {
+      showLoginScreen();
+    }
   } else {
     showLoginScreen();
   }
-  }
 }
-
 /* =================================================================
    SCREENS
 ================================================================= */
